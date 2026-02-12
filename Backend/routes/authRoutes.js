@@ -1,7 +1,10 @@
 //routes/authRoutes.js
 import express from "express";
 import { registerUser, loginUser } from "../controllers/authController.js";
-import { getPendingWorkers, approveWorker } from "../controllers/adminWorkerController.js";
+import {
+  getPendingWorkers,
+  approveWorker,
+} from "../controllers/adminWorkerController.js";
 
 const router = express.Router();
 

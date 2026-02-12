@@ -6,17 +6,40 @@ import jwt from "jsonwebtoken";
 // Register User (Patient or Worker)
 export const registerUser = async (req, res) => {
   try {
-    const { name, age, gender, phoneNumber, cnic, email, password, role } = req.body;
+    const {
+      name,
+      age,
+      gender,
+      phoneNumber,
+      cnic,
+      email,
+      password,
+      role,
+      workerID,
+    } = req.body;
 
     // Validate required fields
-    if (!name || !age || !gender || !phoneNumber || !cnic || !email || !password || !role) {
+    if (
+      !name ||
+      !age ||
+      !gender ||
+      !phoneNumber ||
+      !cnic ||
+      !email ||
+      !password ||
+      !role ||
+      (role === "worker" && !workerID)
+    ) {
       return res.json({ success: false, message: "All fields are required" });
     }
 
     // Check if user already exists
     const existingUser = await User.findOne({ $or: [{ email }, { cnic }] });
     if (existingUser) {
-      return res.json({ success: false, message: "User with this email or CNIC already exists" });
+      return res.json({
+        success: false,
+        message: "User with this email or CNIC already exists",
+      });
     }
 
     // Hash password
@@ -33,27 +56,31 @@ export const registerUser = async (req, res) => {
       email,
       password: hashedPassword,
       role,
-      isApproved: role === "patient" ? true : false // Auto-approve patients, workers need approval
+      isApproved: role === "patient" ? true : false, // Auto-approve patients, workers need approval
+      workerID: role === "worker" ? workerID : null,
     });
 
     await newUser.save();
 
     // Generate token
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     res.json({
       success: true,
-      message: role === "worker" 
-        ? "Registration successful! Your account is pending admin approval." 
-        : "Registration successful!",
+      message:
+        role === "worker"
+          ? "Registration successful! Your account is pending admin approval."
+          : "Registration successful!",
       token,
       user: {
         id: newUser._id,
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
-        isApproved: newUser.isApproved
-      }
+        isApproved: newUser.isApproved,
+      },
     });
   } catch (err) {
     console.error("Registration error:", err);
@@ -68,7 +95,10 @@ export const loginUser = async (req, res) => {
 
     // Validate input
     if (!email || !password) {
-      return res.json({ success: false, message: "Email and password are required" });
+      return res.json({
+        success: false,
+        message: "Email and password are required",
+      });
     }
 
     // Find user
@@ -86,14 +116,17 @@ export const loginUser = async (req, res) => {
 
     // Check if worker is approved
     if (user.role === "worker" && !user.isApproved) {
-      return res.json({ 
-        success: false, 
-        message: "Your account is pending admin approval. Please wait for approval before logging in." 
+      return res.json({
+        success: false,
+        message:
+          "Your account is pending admin approval. Please wait for approval before logging in.",
       });
     }
 
     // Generate token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     res.json({
       success: true,
@@ -104,8 +137,8 @@ export const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        isApproved: user.isApproved
-      }
+        isApproved: user.isApproved,
+      },
     });
   } catch (err) {
     console.error("Login error:", err);
