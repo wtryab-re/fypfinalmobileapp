@@ -226,7 +226,7 @@ const HealthWorkerDashboard: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Display Recent Cases */}
+        {/* Display MY CREATED Recent Cases */}
         {recentCases.length > 0 ? (
           <View style={styles.casesGridContainer}>
             {recentCases.map((caseItem, index) => {
@@ -250,8 +250,9 @@ const HealthWorkerDashboard: React.FC = () => {
                     {formatCaseId(caseItem._id)}
                   </Text>
                   <Text style={styles.recordId} numberOfLines={1}>
-                    P-{caseItem.patientId}
+                    P-{caseItem.patientId?.slice(-4) || "UNKNOWN"}...
                   </Text>
+
                   <Text
                     style={[styles.recordStatus, { color: statusInfo.color }]}
                   >

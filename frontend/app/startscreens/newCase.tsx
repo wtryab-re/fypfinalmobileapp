@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { API_ENDPOINTS, apiCall } from "../api";
+import * as SecureStore from "expo-secure-store";
 
 const { width, height } = Dimensions.get("window");
 
@@ -60,6 +61,15 @@ const NewCaseScreen = () => {
   const removeImage = () => setSelectedImage(null);
 
   const handleSubmit = async () => {
+    console.log({
+      patientId,
+      patientHistory,
+      selectedImage,
+      check1,
+      check2,
+      check3,
+    });
+
     if (!patientId || !patientHistory || !selectedImage) {
       Alert.alert("Error", "Please fill all fields and select an image.");
       return;
@@ -72,6 +82,10 @@ const NewCaseScreen = () => {
 
     setLoading(true);
 
+    const workerInfo = await SecureStore.getItemAsync("user");
+    const worker = workerInfo ? JSON.parse(workerInfo) : null;
+    const workerId = worker?.id || ""; // or worker.id depending on your backend
+
     const formData = new FormData();
     formData.append("patientId", patientId);
     formData.append("patientHistory", patientHistory);
@@ -79,6 +93,7 @@ const NewCaseScreen = () => {
       "manualChecks",
       JSON.stringify({ isLungs: check1, isClear: check2, isVerified: check3 }),
     );
+    formData.append("uploadedBy", workerId);
 
     const uriParts = selectedImage.split(".");
     const fileType = uriParts[uriParts.length - 1];
@@ -137,7 +152,7 @@ const NewCaseScreen = () => {
         </TouchableOpacity>
 
         <Text style={styles.title}>
-          Kindly provide{"\n"}necessary details{"\n"}below
+          Provide the {"\n"}necessary details{"\n"}below
         </Text>
 
         {/* Empty view to balance header layout */}
@@ -146,8 +161,8 @@ const NewCaseScreen = () => {
 
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingContainer}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : -FOOTER_HEIGHT}
+        behavior={"height"}
+        keyboardVerticalOffset={-FOOTER_HEIGHT}
       >
         <ScrollView
           contentContainerStyle={[
@@ -157,6 +172,8 @@ const NewCaseScreen = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <Text style={styles.sectionTitle}>Patient ID</Text>
+
           <View style={styles.inputContainer}>
             <Ionicons
               name="medical-outline"
@@ -173,9 +190,14 @@ const NewCaseScreen = () => {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>Patient History</Text>
+          <Text style={styles.sectionTitle}>Patient Symptoms & History</Text>
+
+          <Text style={styles.descriptionHint}>
+            Please enter a patient symptom & history {patientHistory.length}/100
+          </Text>
+
           <TextInput
-            placeholder="Enter text here"
+            placeholder="Enter description here..."
             placeholderTextColor="gray"
             value={patientHistory}
             onChangeText={setPatientHistory}
@@ -183,10 +205,8 @@ const NewCaseScreen = () => {
             style={styles.textArea}
             maxLength={100}
           />
-          <Text style={styles.descriptionHint}>
-            Please enter a guide description {patientHistory.length}/100
-          </Text>
 
+          <Text style={styles.sectionTitle}>X-Ray Image</Text>
           <TouchableOpacity
             style={styles.uploadContainer}
             onPress={showImagePickerOptions}
@@ -357,11 +377,11 @@ const styles = StyleSheet.create({
     paddingVertical: height * 0.015,
   },
   sectionTitle: {
-    fontSize: width * 0.06,
+    fontSize: width * 0.05,
     fontWeight: "bold",
     color: "#333",
     marginTop: height * 0.03,
-    marginBottom: height * 0.02,
+    marginBottom: height * 0.01,
   },
   textArea: {
     backgroundColor: "#f5f5f5",
@@ -374,7 +394,7 @@ const styles = StyleSheet.create({
   descriptionHint: {
     fontSize: width * 0.035,
     color: "#999",
-    marginTop: height * 0.02,
+    marginBottom: height * 0.01,
   },
   uploadContainer: {
     backgroundColor: "#f5f5f5",
