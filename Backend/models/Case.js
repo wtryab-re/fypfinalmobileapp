@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 const caseSchema = new mongoose.Schema(
   {
     patientId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
 
@@ -78,7 +79,7 @@ const caseSchema = new mongoose.Schema(
   },
   {
     timestamps: true, // createdAt & updatedAt
-  }
+  },
 );
 
 const Case = mongoose.model("Case", caseSchema);

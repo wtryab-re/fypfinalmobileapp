@@ -2,6 +2,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import Case from "../models/Case.js";
 
 // Register User (Patient or Worker)
 export const registerUser = async (req, res) => {
@@ -128,6 +129,8 @@ export const loginUser = async (req, res) => {
       expiresIn: "7d",
     });
 
+    const userCases = (await Case.find({ patientId: user._id })) || [];
+
     res.json({
       success: true,
       message: "Login successful!",
@@ -139,6 +142,7 @@ export const loginUser = async (req, res) => {
         role: user.role,
         isApproved: user.isApproved,
       },
+      userCases: userCases,
     });
   } catch (err) {
     console.error("Login error:", err);
