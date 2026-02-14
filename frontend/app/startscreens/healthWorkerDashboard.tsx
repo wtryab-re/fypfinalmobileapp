@@ -123,6 +123,8 @@ const HealthWorkerDashboard: React.FC = () => {
       );
 
       if (response.data.success) {
+        console.log("\n\n\n\n\nHERERERER", response.data.cases);
+
         setRecentCases(response.data.cases);
       } else {
         console.error("Failed to fetch cases:", response.data.message);
@@ -141,7 +143,7 @@ const HealthWorkerDashboard: React.FC = () => {
       APPROVED_FOR_AI: { text: "Approved", color: "#4CAF50" },
       AI_PROCESSING: { text: "Processing...", color: "#2196F3" },
       AI_PROCESSED: { text: "AI Processed", color: "#00BCD4" },
-      AI_FAILED: { text: "Failed", color: "#F44336" },
+      AI_FAILED: { text: "AI Failed\n Under Doctor Review", color: "#F44336" },
       ASSIGNED_TO_DOCTOR: { text: "With Doctor", color: "#9C27B0" },
       COMPLETED: { text: "Completed", color: "#4CAF50" },
       REJECTED: { text: "Rejected", color: "#F44336" },
@@ -235,12 +237,12 @@ const HealthWorkerDashboard: React.FC = () => {
                 <TouchableOpacity
                   key={caseItem._id || index}
                   style={styles.recordCardGrid}
-                  onPress={() =>
+                  onPress={() => {
                     router.push({
                       pathname: "/startscreens/seeStatus" as any,
-                      params: { caseId: caseItem._id },
-                    })
-                  }
+                      params: { caseId: JSON.stringify(caseItem._id) },
+                    });
+                  }}
                 >
                   <Image
                     source={{ uri: caseItem.imageUrl }}
@@ -276,7 +278,6 @@ const HealthWorkerDashboard: React.FC = () => {
       </ScrollView>
 
       {/* Bottom Navigation - FIXED outside ScrollView */}
-      {/* ✅ ONLY CHANGE: Updated profile navigation */}
       <View style={styles.bottomNav}>
         <TouchableOpacity
           onPress={() => router.push("/startscreens/healthWorkerDashboard")}

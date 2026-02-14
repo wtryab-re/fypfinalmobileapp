@@ -1,6 +1,7 @@
 // controllers/workerController.js
 import Case from "../models/Case.js";
 import User from "../models/User.js";
+import mongoose from "mongoose";
 
 // Get ALL cases in the system (not filtered by worker)
 export const getWorkerCases = async (req, res) => {
@@ -32,9 +33,9 @@ export const getRecentWorkerCases = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(6);
 
-    console.log('🔍 Fetching ALL cases (not filtered by worker)');
-    console.log('📦 Found cases:', cases.length);
-    console.log('📦 Cases data:', cases);
+    console.log("🔍 Fetching ALL cases (not filtered by worker)");
+    console.log("📦 Found cases:", cases.length);
+    console.log("📦 Cases data:", cases);
 
     res.json({
       success: true,
@@ -74,14 +75,16 @@ export const getWorkerStats = async (req, res) => {
   try {
     // ✅ CHANGED: Stats for ALL cases in the system
     const totalCases = await Case.countDocuments({});
-    const pendingCases = await Case.countDocuments({ 
-      status: { $in: ["PENDING_WORKER_REVIEW", "APPROVED_FOR_AI", "AI_PROCESSING"] }
+    const pendingCases = await Case.countDocuments({
+      status: {
+        $in: ["PENDING_WORKER_REVIEW", "APPROVED_FOR_AI", "AI_PROCESSING"],
+      },
     });
-    const completedCases = await Case.countDocuments({ 
-      status: "COMPLETED" 
+    const completedCases = await Case.countDocuments({
+      status: "COMPLETED",
     });
-    const assignedCases = await Case.countDocuments({ 
-      status: "ASSIGNED_TO_DOCTOR" 
+    const assignedCases = await Case.countDocuments({
+      status: "ASSIGNED_TO_DOCTOR",
     });
 
     res.json({
@@ -102,7 +105,14 @@ export const getWorkerStats = async (req, res) => {
 // Get single case details by ID
 export const getCaseById = async (req, res) => {
   try {
-    const { caseId } = req.params;
+    let { caseId } = req.params;
+    caseId = caseId.replace(/^"|"$/g, ""); // remove quotes if accidentally passed
+
+    if (!mongoose.Types.ObjectId.isValid(caseId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid Case ID" });
+    }
 
     const caseData = await Case.findById(caseId)
       .populate("assignedDoctor", "name email")
@@ -113,8 +123,8 @@ export const getCaseById = async (req, res) => {
       return res.json({ success: false, message: "Case not found" });
     }
 
-    console.log('Fetched case:', caseData); // DEBUG
-    console.log('uploadedBy:', caseData.uploadedBy); // DEBUG
+    console.log("Fetched case:", caseData); // DEBUG
+    console.log("uploadedBy:", caseData.uploadedBy); // DEBUG
 
     res.json({
       success: true,

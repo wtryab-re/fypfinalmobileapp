@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  ScrollView,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
@@ -24,13 +25,11 @@ const PatientDashboard = () => {
           text: "Logout",
           style: "destructive",
           onPress: async () => {
-            // 🧹 Clear stored authentication data
             await SecureStore.deleteItemAsync("authToken");
             await SecureStore.deleteItemAsync("userRole");
             await SecureStore.deleteItemAsync("userName");
 
             console.log("User logged out.");
-
             router.replace("/startscreens/signinlogin");
           },
         },
@@ -40,112 +39,101 @@ const PatientDashboard = () => {
     }
   };
 
-  const [currentUserInfo, setcurrentUserInfo] = useState("");
-  const [userCases, setUserCases] = useState([]);
+  const [currentUserInfo, setCurrentUserInfo] = useState<any>({});
+  const [userCases, setUserCases] = useState<any[]>([]);
+
   const currentPatientInformation = async () => {
-    //fetch patient information from secure store
     const userInfo = await SecureStore.getItemAsync("user");
     const user = userInfo ? JSON.parse(userInfo) : null;
-    if (userInfo) {
-      setcurrentUserInfo(user);
-    }
+    if (user) setCurrentUserInfo(user);
 
     const casesInfo = await SecureStore.getItemAsync("userCases");
     const cases = casesInfo ? JSON.parse(casesInfo) : [];
     setUserCases(cases);
-    //fetch cases related to patient from api
   };
 
   useEffect(() => {
     currentPatientInformation();
   }, []);
+
   return (
     <SafeAreaProvider style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.name}>{currentUserInfo.name}</Text>
-          <Text style={styles.id}>{currentUserInfo.id}</Text>
+          <Text style={styles.name}>{currentUserInfo.name || "Patient"}</Text>
+          <Text style={styles.id}>{currentUserInfo.id || "N/A"}</Text>
         </View>
       </View>
 
-      {/* Case Status Card 
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => router.push("/startscreens/seeStatus")}
+      {/* Scrollable content */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: height * 0.15 }}
       >
-        <Text style={styles.cardTitle}>
-          Click to see recent {"\n"}
-          <Text style={{ fontWeight: "bold" }}>case status</Text>
-        </Text>
-        <View style={styles.cardContent}>
-          <TouchableOpacity
-            style={styles.statusButton}
-            onPress={() => router.push("/startscreens/seeStatus")}
-          >
-            <Text style={styles.buttonText}>See Status</Text>
-          </TouchableOpacity>
-          <Image
-            source={require("../../assets/images/questionMark2.png")}
-            style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
-              resizeMode: "cover",
-              transform: [{ translateY: -25 }, { translateX: -20 }],
-            }}
-          />
-        </View>
-      </TouchableOpacity>
-*/}
-      <View>
-        {userCases && userCases.length > 0 ? (
-          <View style={{ marginBottom: 30 }}>
-            <Text
-              style={{ fontSize: 18, fontWeight: "bold", marginBottom: 15 }}
-            >
-              Your Cases
-            </Text>
-            {userCases.map((caseItem) => (
-              <View
-                key={caseItem._id}
-                style={{
-                  backgroundColor: "#f0f0f0",
-                  padding: 15,
-                  borderRadius: 10,
-                  marginBottom: 10,
-                }}
-              >
-                <Text style={{ fontSize: 16, fontWeight: "500" }}>
-                  Case ID: {caseItem._id}
-                </Text>
-                <Text style={{ fontSize: 14, color: "#555" }}>
-                  Status: {caseItem.status}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <Text style={{ fontSize: 16, color: "#555", marginBottom: 30 }}>
-            You have no recorded cases at the moment.
-          </Text>
-        )}
-      </View>
+        {/* Recent Cases */}
+        <View style={styles.casesContainer}>
+          {userCases && userCases.length > 0 ? (
+            <>
+              <Text style={styles.casesHeading}>Your Cases</Text>
 
-      {}
-      <TouchableOpacity style={styles.logout} onPress={handleLogout}>
-        <Icon name="alert-circle-outline" size={20} color="red" />
-        <Text style={styles.logoutText}>Logout</Text>
-        <Icon name="chevron-forward" size={20} color="gray" />
-      </TouchableOpacity>
+              {userCases.map((caseItem, index) => (
+                <TouchableOpacity
+                  key={caseItem._id || index}
+                  style={styles.caseCard}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    // Navigate to PatientSeeStatus page with caseId
+                    router.push({
+                      pathname: "/startscreens/patientseestatus",
+                      params: { caseId: caseItem._id },
+                    });
+                  }}
+                >
+                  <View style={styles.caseInfo}>
+                    <Text style={styles.caseId}>
+                      Case ID: {caseItem._id?.slice(-8).toUpperCase()}
+                    </Text>
+                    <Text style={styles.caseStatus}>
+                      Status:{" "}
+                      <Text style={{ fontWeight: "600", color: "#2974f0" }}>
+                        {caseItem.status === "AI_FAILED"
+                          ? "Under Review"
+                          : String(caseItem.status).toUpperCase()}
+                      </Text>
+                    </Text>
+                  </View>
+                  <Icon name="chevron-forward" size={20} color="#888" />
+                </TouchableOpacity>
+              ))}
+            </>
+          ) : (
+            <Text style={styles.noCasesText}>
+              You have no recorded cases at the moment.
+            </Text>
+          )}
+        </View>
+
+        {/* Logout 
+        <TouchableOpacity style={styles.logout} onPress={handleLogout}>
+          <Icon name="alert-circle-outline" size={20} color="red" />
+          <Text style={styles.logoutText}>Logout</Text>
+          <Icon name="chevron-forward" size={20} color="gray" />
+        </TouchableOpacity>
+          */}
+      </ScrollView>
 
       {/* Bottom Navigation */}
       <View style={styles.navbar}>
-        <Icon name="home" size={26} color="#2974f0" />
+        <TouchableOpacity>
+          <Icon name="home" size={26} color="#2974f0" />
+        </TouchableOpacity>
 
-        <Icon name="folder-outline" size={26} color="#ccc" />
-
-        <Icon name="person-outline" size={26} color="#ccc" />
+        <TouchableOpacity
+          onPress={() => router.push("/startscreens/patientprofile")}
+        >
+          <Icon name="person-outline" size={26} color="#ccc" />
+        </TouchableOpacity>
       </View>
     </SafeAreaProvider>
   );
@@ -155,7 +143,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    padding: 20,
+    paddingHorizontal: 20,
     paddingTop: height * 0.05,
   },
   header: {
@@ -164,39 +152,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 30,
     marginTop: height * 0.02,
-    paddingHorizontal: width * 0.05,
+    paddingHorizontal: width * 0.02,
   },
   name: { fontSize: 18, fontWeight: "bold" },
-  id: { fontSize: 16, color: "#444" },
-  avatar: { width: 50, height: 50, borderRadius: 25 },
-  card: {
-    backgroundColor: "#e5f4ff",
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 30,
-  },
-  cardTitle: {
+  id: { fontSize: 15, color: "#444" },
+
+  casesContainer: { marginBottom: 30 },
+  casesHeading: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 15,
     color: "#000",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingLeft: 0,
   },
-  cardContent: {
+  caseCard: {
+    backgroundColor: "#f0f0f0",
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
   },
-  statusButton: {
-    backgroundColor: "#2974f0",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    transform: [{ translateY: -15 }],
-  },
-  buttonText: { color: "#fff", fontWeight: "bold" },
+  caseInfo: { flexDirection: "column" },
+  caseId: { fontSize: 16, fontWeight: "500", color: "#333" },
+  caseStatus: { fontSize: 14, color: "#555" },
+  noCasesText: { fontSize: 16, color: "#555", marginBottom: 30 },
+
   logout: {
     flexDirection: "row",
     alignItems: "center",
@@ -209,7 +190,7 @@ const styles = StyleSheet.create({
 
   navbar: {
     position: "absolute",
-    bottom: height * 0.05,
+    bottom: height * 0.03,
     left: 0,
     right: 0,
     flexDirection: "row",

@@ -9,12 +9,9 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
-import { API_BASE_URL } from "../api";
+import * as SecureStore from "expo-secure-store";
 
 const { width, height } = Dimensions.get("window");
 
@@ -54,65 +51,47 @@ interface CaseData {
   createdAt: string;
   updatedAt: string;
 }
+// ... rest of imports remain the same
 
-const StatusScreen = () => {
+const PatientSeeStatus = () => {
   const { caseId } = useLocalSearchParams();
-  const [caseData, setCaseData] = useState<CaseData | null>(null);
+  const [caseData, setCaseData] = useState<
+    (CaseData & { report?: any }) | null
+  >(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (caseId) fetchCaseDetails();
+    loadCaseFromStorage();
   }, [caseId]);
 
-  const fetchCaseDetails = async () => {
+  const loadCaseFromStorage = async () => {
     try {
-      const token = await AsyncStorage.getItem("workerToken");
-      if (!token) {
-        router.replace("/startscreens/login" as any);
-        return;
-      }
-
-      // Clean caseId before using
-      const cleanCaseId = String(caseId).replace(/^"|"$/g, "");
-      const response = await axios.get(
-        `${API_BASE_URL}/api/worker/case/${cleanCaseId}`,
-        { headers: { token } },
-      );
-
-      if (response.data.success) {
-        setCaseData(response.data.case);
-      } else {
-        console.error("Failed to fetch case:", response.data.message);
-      }
-    } catch (error) {
-      console.error("Error fetching case details:", error);
+      const storedCases = await SecureStore.getItemAsync("userCases");
+      const cases: CaseData[] = storedCases ? JSON.parse(storedCases) : [];
+      const cleanId = String(caseId).replace(/^"|"$/g, "");
+      const foundCase = cases.find((c) => c._id === cleanId);
+      if (foundCase) setCaseData(foundCase);
+    } catch (err) {
+      console.error("Error loading case from storage:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatCaseId = (id: string): string =>
-    `C-${id.slice(-6).toUpperCase()}`;
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
+  const formatCaseId = (id: string) => `C-${id.slice(-6).toUpperCase()}`;
+  const formatDate = (date: string) =>
+    new Date(date).toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
       year: "numeric",
     });
-  };
-
-  const formatTime = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
+  const formatTime = (date: string) =>
+    new Date(date).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
-
-  const getStatusText = (status: CaseStatus): string => {
-    const statusMap: Record<CaseStatus, string> = {
+  const getStatusText = (status: CaseStatus) => {
+    const map: Record<CaseStatus, string> = {
       PENDING_WORKER_REVIEW: "Pending Review",
       APPROVED_FOR_AI: "Approved for AI",
       AI_PROCESSING: "AI Processing",
@@ -122,21 +101,19 @@ const StatusScreen = () => {
       COMPLETED: "Completed",
       REJECTED: "Rejected",
     };
-    return statusMap[status] || "Unknown";
+    return map[status] || "Unknown";
   };
 
-  if (loading) {
+  if (loading)
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1a78d2" />
-          <Text style={styles.loadingText}>Loading case details...</Text>
+          <Text>Loading case details...</Text>
         </View>
       </SafeAreaView>
     );
-  }
 
-  if (!caseData) {
+  if (!caseData)
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -150,9 +127,7 @@ const StatusScreen = () => {
         </View>
       </SafeAreaView>
     );
-  }
 
-  // 🔹 Safely handle all possible object fields
   const patientDisplayId =
     typeof caseData.patientId === "object"
       ? caseData.patientId._id?.slice(-8).toUpperCase() || "UNKNOWN"
@@ -182,7 +157,7 @@ const StatusScreen = () => {
           <Text style={styles.patientId}>Patient ID: P-{patientDisplayId}</Text>
         </View>
 
-        {/* X-ray and Classification Result */}
+        {/* AI Result */}
         <View style={styles.resultCard}>
           <Image source={{ uri: caseData.imageUrl }} style={styles.xrayImage} />
           <View style={styles.resultTextContainer}>
@@ -194,7 +169,7 @@ const StatusScreen = () => {
           </View>
         </View>
 
-        {/* Details */}
+        {/* Case Details */}
         <View style={styles.detailsContainer}>
           <DetailRow
             label="Submission Date"
@@ -205,42 +180,6 @@ const StatusScreen = () => {
             label="Case Status"
             value={getStatusText(caseData.status)}
           />
-
-          {/* Uploaded By */}
-          {caseData.uploadedBy && (
-            <>
-              <DetailRow
-                label="Submitted by"
-                value={
-                  typeof caseData.uploadedBy === "object"
-                    ? caseData.uploadedBy.name || "Unknown"
-                    : "N/A"
-                }
-              />
-              <DetailRow
-                label="Worker ID"
-                value={`HW-${
-                  typeof caseData.uploadedBy === "object"
-                    ? String(caseData.uploadedBy._id).slice(-8).toUpperCase()
-                    : String(caseData.uploadedBy).slice(-8).toUpperCase()
-                }`}
-              />
-            </>
-          )}
-
-          {/* Assigned Doctor */}
-          {caseData.assignedDoctor && (
-            <>
-              <DetailRow
-                label="Assigned Doctor"
-                value={`Dr. ${caseData.assignedDoctor.name}`}
-              />
-              <DetailRow
-                label="Doctor Email"
-                value={caseData.assignedDoctor.email}
-              />
-            </>
-          )}
 
           {/* Manual Checks */}
           <View style={styles.checksContainer}>
@@ -266,14 +205,43 @@ const StatusScreen = () => {
               <Text style={styles.historyText}>{caseData.patientHistory}</Text>
             </View>
           )}
+
+          {/* Doctor Report */}
+          {caseData.report && (
+            <View style={styles.reportContainer}>
+              <Text style={styles.reportTitle}>Doctor Report</Text>
+              <ScrollView
+                horizontal={false}
+                showsVerticalScrollIndicator={true}
+                style={{ maxHeight: 300 }}
+              >
+                <DetailRow
+                  label="Doctor Name"
+                  value={caseData.report.doctorName}
+                />
+                <DetailRow
+                  label="Diagnosis"
+                  value={caseData.report.diagnosis}
+                />
+                <DetailRow label="Findings" value={caseData.report.findings} />
+                <DetailRow
+                  label="Recommendations"
+                  value={caseData.report.recommendations}
+                />
+                <DetailRow
+                  label="Medications"
+                  value={caseData.report.medications}
+                />
+                <DetailRow label="Follow Up" value={caseData.report.followUp} />
+              </ScrollView>
+            </View>
+          )}
         </View>
 
-        {/* Back to Home */}
+        {/* Back to Dashboard */}
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() =>
-            router.push("/startscreens/healthWorkerDashboard" as any)
-          }
+          onPress={() => router.back()}
         >
           <Text style={styles.backButtonText}>Back to Dashboard</Text>
         </TouchableOpacity>
@@ -282,144 +250,134 @@ const StatusScreen = () => {
   );
 };
 
-// 🔹 Safe DetailRow
-type DetailRowProps = {
-  label: string;
-  value: any;
-};
-
-const DetailRow: React.FC<DetailRowProps> = ({ label, value }) => (
+const DetailRow: React.FC<{ label: string; value: any }> = ({
+  label,
+  value,
+}) => (
   <View style={styles.detailRow}>
     <Text style={styles.detailLabel}>{label}</Text>
     <Text style={styles.detailValue}>
-      {typeof value === "object" ? JSON.stringify(value) : String(value)}
+      {typeof value === "object"
+        ? JSON.stringify(value, null, 2)
+        : String(value)}
     </Text>
   </View>
 );
 
-export default StatusScreen;
+export default PatientSeeStatus;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: {
-    marginTop: height * 0.02,
-    fontSize: width * 0.04,
-    color: "#666",
-  },
-  errorText: { color: "#F44336", fontSize: width * 0.045, fontWeight: "bold" },
-  errorTextSmall: {
-    color: "#F44336",
-    fontSize: width * 0.035,
-    marginTop: height * 0.005,
-  },
+  errorText: { color: "#F44336", fontSize: 16, fontWeight: "bold" },
+  errorTextSmall: { color: "#F44336", fontSize: 14, marginTop: 5 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: width * 0.05,
-    paddingVertical: height * 0.02,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
-  headerTitle: { fontSize: width * 0.05, fontWeight: "bold", color: "#333" },
-  caseIdContainer: { alignItems: "center", paddingVertical: height * 0.02 },
-  caseIdLabel: { fontSize: width * 0.035, color: "#666" },
+  headerTitle: { fontSize: 18, fontWeight: "bold", color: "#333" },
+  caseIdContainer: { alignItems: "center", paddingVertical: 15 },
+  caseIdLabel: { fontSize: 14, color: "#666" },
   caseIdValue: {
-    fontSize: width * 0.06,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#1a78d2",
-    marginTop: height * 0.005,
+    marginTop: 5,
   },
-  patientId: {
-    fontSize: width * 0.04,
-    color: "#333",
-    fontWeight: "600",
-    marginTop: height * 0.005,
-  },
+  patientId: { fontSize: 15, color: "#333", fontWeight: "600", marginTop: 5 },
   resultCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f5f5f5",
-    margin: width * 0.05,
+    margin: 20,
     borderRadius: 15,
-    padding: width * 0.04,
+    padding: 15,
   },
   xrayImage: {
-    width: width * 0.32,
-    height: width * 0.32,
+    width: 120,
+    height: 120,
     borderRadius: 10,
     backgroundColor: "#e0e0e0",
   },
-  resultTextContainer: { marginLeft: width * 0.05, flex: 1 },
-  resultLabel: { fontSize: width * 0.04, color: "#666" },
+  resultTextContainer: { marginLeft: 15, flex: 1 },
+  resultLabel: { fontSize: 14, color: "#666" },
   resultValue: {
-    fontSize: width * 0.055,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#333",
-    marginTop: height * 0.005,
+    marginTop: 5,
   },
   detailsContainer: {
     backgroundColor: "#f5f5f5",
-    marginHorizontal: width * 0.05,
+    marginHorizontal: 20,
     borderRadius: 15,
-    padding: width * 0.04,
+    padding: 15,
   },
   detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: height * 0.015,
+    marginBottom: 10,
   },
-  detailLabel: { fontSize: width * 0.04, color: "#555", flex: 1 },
+  detailLabel: { fontSize: 14, color: "#555", flex: 1 },
   detailValue: {
-    fontSize: width * 0.04,
+    fontSize: 14,
     color: "#333",
     fontWeight: "600",
     textAlign: "right",
     flex: 1,
+    flexWrap: "wrap",
   },
   checksContainer: {
-    marginTop: height * 0.02,
-    paddingTop: height * 0.02,
+    marginTop: 15,
+    paddingTop: 15,
     borderTopWidth: 1,
     borderTopColor: "#ddd",
   },
   checksTitle: {
-    fontSize: width * 0.042,
+    fontSize: 15,
     fontWeight: "bold",
     color: "#333",
-    marginBottom: height * 0.01,
+    marginBottom: 5,
   },
   historyContainer: {
-    marginTop: height * 0.02,
-    paddingTop: height * 0.02,
+    marginTop: 15,
+    paddingTop: 15,
     borderTopWidth: 1,
     borderTopColor: "#ddd",
   },
   historyTitle: {
-    fontSize: width * 0.042,
+    fontSize: 15,
     fontWeight: "bold",
     color: "#333",
-    marginBottom: height * 0.01,
+    marginBottom: 5,
   },
-  historyText: {
-    fontSize: width * 0.038,
-    color: "#555",
-    lineHeight: width * 0.055,
+  historyText: { fontSize: 14, color: "#555", lineHeight: 20 },
+  reportContainer: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: "#e8f0fe",
+    borderRadius: 12,
+  },
+  reportTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1a78d2",
+    marginBottom: 10,
   },
   backButton: {
     backgroundColor: "#1a78d2",
     borderRadius: 30,
-    paddingVertical: height * 0.02,
-    paddingHorizontal: width * 0.1,
+    paddingVertical: 15,
+    paddingHorizontal: 40,
     alignSelf: "center",
-    marginTop: height * 0.03,
-    marginBottom: height * 0.03,
+    marginTop: 20,
+    marginBottom: 30,
   },
-  backButtonText: {
-    color: "#fff",
-    fontSize: width * 0.045,
-    fontWeight: "bold",
-  },
+  backButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });
