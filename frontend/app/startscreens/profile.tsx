@@ -296,14 +296,6 @@ const WorkerProfile: React.FC = () => {
           <Ionicons name="home-outline" size={width * 0.07} color="#999" />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("./notifications" as any)}>
-          <Ionicons
-            name="notifications-outline"
-            size={width * 0.07}
-            color="#999"
-          />
-        </TouchableOpacity>
-
         <TouchableOpacity onPress={() => router.push("./profile" as any)}>
           <Ionicons name="person" size={width * 0.07} color="#1a78d2" />
         </TouchableOpacity>

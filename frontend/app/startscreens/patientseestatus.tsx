@@ -157,12 +157,45 @@ const PatientSeeStatus = () => {
           <Text style={styles.patientId}>Patient ID: P-{patientDisplayId}</Text>
         </View>
 
+        {aiResultDisplay == "null" && caseData.report == null ? (
+          <View
+            style={{
+              alignItems: "center",
+              marginBottom: 10,
+              paddingHorizontal: 20,
+              backgroundColor: "#fff3e0",
+              marginHorizontal: 20,
+              borderRadius: 10,
+              paddingVertical: 10,
+            }}
+          >
+            <Text
+              style={{
+                color: "#e65100",
+                fontSize: 14,
+                textAlign: "center",
+                fontWeight: "600",
+              }}
+            >
+              {" "}
+              {aiResultDisplay == "null" && caseData.report == null
+                ? "Under Doctor Review\nCome back later for results"
+                : ""}
+            </Text>
+          </View>
+        ) : (
+          ""
+        )}
         {/* AI Result */}
         <View style={styles.resultCard}>
           <Image source={{ uri: caseData.imageUrl }} style={styles.xrayImage} />
           <View style={styles.resultTextContainer}>
             <Text style={styles.resultLabel}>AI Result</Text>
-            <Text style={styles.resultValue}>{aiResultDisplay}</Text>
+            <Text style={styles.resultValue}>
+              {aiResultDisplay == "null"
+                ? "No AI result available"
+                : aiResultDisplay}
+            </Text>
             {caseData.aiError && (
               <Text style={styles.errorTextSmall}>{caseData.aiError}</Text>
             )}
